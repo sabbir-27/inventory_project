@@ -52,7 +52,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
   @override
   void initState() {
     super.initState();
-    
+
     // If an invoice was passed, pre-populate the fields for editing
     if (widget.invoice != null) {
       _isEditing = true;
@@ -60,7 +60,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
       _customerNameController.text = inv['customer'] ?? "";
       _phoneController.text = inv['phone'] ?? "";
       _addressController.text = inv['address'] ?? "";
-      
+
       // Parse numbers carefully as they might be int or double from backend
       _discount = (inv['discount'] as num? ?? 0.0).toDouble();
       _paid = (inv['paid'] as num? ?? 0.0).toDouble();
@@ -69,11 +69,10 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
 
       // Parse Date
       if (inv['date'] != null) {
-        // Try parsing standard date string if possible, else keep current
         try {
-           _selectedDate = DateTime.parse(inv['date']);
+          _selectedDate = DateTime.parse(inv['date']);
         } catch (e) {
-           // ignore if format doesn't match
+          // ignore if format doesn't match
         }
       }
 
@@ -125,11 +124,30 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
   }
 
   double get _subtotal {
-    return _items.fold(0.0, (sum, item) => sum + ((item['qty'] as int) * (item['price'] as double)));
+    return _items.fold(0.0, (sum, item) {
+      final qty = parseQty(item['qty']);
+      final price = (item['price'] as num).toDouble();
+      return sum + (qty * price);
+    });
   }
 
-  double get _total => _subtotal - _discount;
-  double get _due => _total - _paid;
+  // Calculate total after discount
+  double get _total => (_subtotal - _discount).clamp(0.0, double.infinity);
+
+  // Calculate due. If paid is greater than total, due should be 0 (or negative to show change)
+  double get _due => (_total - _paid);
+
+  // Helper to safely parse Quantity
+  double parseQty(dynamic qty) {
+    if (qty is int) return qty.toDouble();
+    if (qty is double) return qty;
+    if (qty is String) {
+      // Extracts numbers from strings like "10 pcs" or "10.5 kg"
+      final match = RegExp(r'[\d.]+').firstMatch(qty);
+      if (match != null) return double.tryParse(match.group(0)!) ?? 0.0;
+    }
+    return 0.0;
+  }
 
   String _formatDate(DateTime date) {
     const List<String> months = [
@@ -221,16 +239,16 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
 
     // Explicitly cast items to the correct type for PDF generation
     final List<Map<String, dynamic>> items = List<Map<String, dynamic>>.from(
-      (invoice['items'] as List).map((item) => Map<String, dynamic>.from(item))
+        (invoice['items'] as List).map((item) => Map<String, dynamic>.from(item))
     );
 
     pdf.addPage(
-      pw.MultiPage( // Use MultiPage for automatic pagination
+      pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(40),
         build: (pw.Context context) {
           return [
-            // Header Section - Responsive Layout
+            // Header Section
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -248,10 +266,10 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                       pw.Column(
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
-                          pw.Text("Your Company Name", style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: baseColor)),
+                          pw.Text("MS LITON TRADERSE", style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: baseColor)),
                           pw.SizedBox(height: 4),
-                          pw.Text("123 Street Name, Dhaka, Bangladesh", style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
-                          pw.Text("Phone: +880171234567 | Email: info@company.com", style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                          pw.Text("Road:5, , Gaibandha,Bangladesh", style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                          pw.Text("Phone: +8801793444017 | Email: info@company.com", style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
                         ],
                       ),
                     ],
@@ -273,14 +291,14 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
             ),
             pw.SizedBox(height: 30),
 
-            // Bill To Section - Responsive Box
+            // Bill To Section
             pw.Container(
               padding: const pw.EdgeInsets.all(15),
               decoration: pw.BoxDecoration(
                 color: accentColor,
                 borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
               ),
-              width: double.infinity, // Make it span full width
+              width: double.infinity,
               child: pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
@@ -303,10 +321,10 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
             ),
             pw.SizedBox(height: 20),
 
-            // Table Section - Responsive Table
+            // Table Section with parseQty logic
             pw.Table.fromTextArray(
               context: context,
-              border: null, // Remove default border for cleaner look
+              border: null,
               headerStyle: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 10),
               headerDecoration: pw.BoxDecoration(
                 color: baseColor,
@@ -317,11 +335,11 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                 border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey200, width: 0.5)),
               ),
               columnWidths: {
-                0: const pw.FlexColumnWidth(1), // SL
-                1: const pw.FlexColumnWidth(4), // Item Description
-                2: const pw.FlexColumnWidth(2), // Qty
-                3: const pw.FlexColumnWidth(2), // Price
-                4: const pw.FlexColumnWidth(2), // Total
+                0: const pw.FlexColumnWidth(1),
+                1: const pw.FlexColumnWidth(4),
+                2: const pw.FlexColumnWidth(2),
+                3: const pw.FlexColumnWidth(2),
+                4: const pw.FlexColumnWidth(2),
               },
               headerAlignments: {
                 0: pw.Alignment.centerLeft,
@@ -338,30 +356,33 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                 4: pw.Alignment.centerRight,
               },
               data: <List<String>>[
-                <String>['SL', 'ITEM DESCRIPTION', 'QTY', 'PRICE', 'TOTAL'],
+                <String>['SL', 'ITEM NAME', 'QTY', 'PRICE', 'TOTAL'],
                 ...items.asMap().entries.map((entry) {
                   final index = entry.key;
                   final item = entry.value;
+
+                  // Safe Parsing Logic
+                  final double qtyNum = parseQty(item['qty']);
+                  final double priceNum = (item['price'] as num).toDouble();
+                  final double total = qtyNum * priceNum;
+
                   return [
                     (index + 1).toString(),
                     item['name'].toString(),
-                    item['qty'].toString(),
-                    item['price'].toString(),
-                    ((item['qty'] as int) * (item['price'] as double)).toStringAsFixed(2)
+                    item['qty'].toString(), // Display original value
+                    priceNum.toStringAsFixed(2),
+                    total.toStringAsFixed(2)
                   ];
                 }),
               ],
             ),
             pw.SizedBox(height: 20),
 
-            // Totals Section - Responsive Alignment
+            // Totals Section
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.end,
               children: [
-                pw.Expanded(
-                  flex: 1,
-                  child: pw.Container(), // Spacer
-                ),
+                pw.Expanded(flex: 1, child: pw.Container()),
                 pw.Expanded(
                   flex: 1,
                   child: pw.Column(
@@ -390,7 +411,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                         ],
                       ),
                       pw.SizedBox(height: 8),
-                       pw.Row(
+                      pw.Row(
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
                           pw.Text("Paid:", style: const pw.TextStyle(fontSize: 10, color: PdfColors.green)),
@@ -398,7 +419,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                         ],
                       ),
                       pw.SizedBox(height: 2),
-                       pw.Row(
+                      pw.Row(
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
                           pw.Text("Balance Due:", style: const pw.TextStyle(fontSize: 10, color: PdfColors.red)),
@@ -410,9 +431,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                 ),
               ],
             ),
-            
             pw.Spacer(),
-            
             // Footer Section
             pw.Container(
               width: double.infinity,
@@ -446,7 +465,6 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
       return;
     }
 
-    // Validate phone number: Must be 11 digits if provided
     if (_phoneController.text.isNotEmpty && _phoneController.text.length != 11) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Mobile number must be 11 digits"), backgroundColor: Colors.red),
@@ -455,22 +473,20 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
     }
 
     if (_items.isEmpty || (_items.length == 1 && (_items[0]['name'] as String).isEmpty)) {
-       ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please add at least one item"), backgroundColor: Colors.red),
       );
       return;
     }
 
-    // Generate ID using Mobile Number if available, else fallback to random
     String generatedId;
     if (_phoneController.text.isNotEmpty) {
-      generatedId = _phoneController.text; // Use exact mobile number as ID
+      generatedId = _phoneController.text;
     } else {
       generatedId = "INV-2023-00${100 + DateTime.now().millisecondsSinceEpoch % 1000}";
     }
 
     final invoiceData = {
-      // Keep existing ID if editing, else generate new based on mobile
       "id": _isEditing ? widget.invoice!['id'] : generatedId,
       "customer": _customerNameController.text,
       "phone": _phoneController.text,
@@ -491,23 +507,18 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
 
     try {
       if (_isEditing) {
-        // Update Existing Invoice
         final mongoId = widget.invoice!['_id'];
         if (mongoId != null) {
-           await ApiService.updateInvoice(mongoId, invoiceData);
+          await ApiService.updateInvoice(mongoId, invoiceData);
         } else {
-           // Fallback if _id is missing (e.g. local mock data)
-           await ApiService.createInvoice(invoiceData);
+          await ApiService.createInvoice(invoiceData);
         }
       } else {
-        // Create New Invoice
         await ApiService.createInvoice(invoiceData);
       }
 
-      // Refresh InvoiceData list for ReportsPage
       await InvoiceData.fetchInvoices();
 
-      // Generate PDF for user
       final pdfInvoice = Map<String, dynamic>.from(invoiceData);
       pdfInvoice['date'] = _formatDate(DateTime.now());
       pdfInvoice['subtotal'] = _subtotal.toStringAsFixed(2);
@@ -522,7 +533,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Invoice Saved Successfully"), backgroundColor: Colors.green),
         );
-        Navigator.pop(context); // Go back to previous screen (e.g. ReportsPage)
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
@@ -542,7 +553,19 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
         foregroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: true,
-        title: Text(_isEditing ? "Edit Invoice" : "Create Invoice"),
+        toolbarHeight: 80,
+        flexibleSpace: Padding(
+          padding: const EdgeInsets.fromLTRB(50, 45, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text(
+                "Hardware & Paint Store",
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.print),
@@ -585,8 +608,14 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Customer Details Section
-            Card( 
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16.0, left: 4),
+              child: Text(
+                _isEditing ? "Edit Invoice" : "Create Invoice",
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0066CC)),
+              ),
+            ),
+            Card(
               elevation: 2,
               shadowColor: Colors.black.withValues(alpha: 0.05),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -596,7 +625,8 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Customer Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF0066CC))),
+                    const Text("Customer Details",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF0066CC))),
                     const SizedBox(height: 24),
                     Row(
                       children: [
@@ -619,7 +649,6 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                               tooltip: "Search by Phone",
                             ),
                             keyboardType: TextInputType.phone,
-                            // Limit to 11 digits
                             inputFormatters: [
                               FilteringTextInputFormatter.digitsOnly,
                               LengthLimitingTextInputFormatter(11),
@@ -638,131 +667,166 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                 ),
               ),
             ),
-
             const SizedBox(height: 24),
-
-            // Items Section Header with Add Button
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                 const Text("Items List", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87)),
-                 ElevatedButton.icon(
-                   onPressed: _addItem,
-                   icon: const Icon(Icons.add, size: 18),
-                   label: const Text("Add Item"),
-                   style: ElevatedButton.styleFrom(
-                     backgroundColor: const Color(0xFF0066CC),
-                     foregroundColor: Colors.white,
-                     elevation: 2,
-                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                   ),
-                 ),
+                const Text("Items List", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87)),
+                ElevatedButton.icon(
+                  onPressed: _addItem,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text("Add Item"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0066CC),
+                    foregroundColor: Colors.white,
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
-
-            // Items Table
             Card(
-              elevation: 2,
-              shadowColor: Colors.black.withValues(alpha: 0.05),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 3, // Increased elevation for better depth
+              shadowColor: Colors.black.withValues(alpha: 0.1), // Slightly darker shadow
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), // Rounder corners
               color: Colors.white,
+              clipBehavior: Clip.antiAlias, // Ensure children don't overflow rounded corners
               child: Column(
                 children: [
-                  // Table Header
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), // More padding
                     decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                      border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+                      color: const Color(0xFFDDDDDD), // Header color to match app theme
+                      border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
                     ),
                     child: const Row(
                       children: [
-                        Expanded(flex: 1, child: Text("Sl", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
-                        Expanded(flex: 4, child: Text("Item Name", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
-                        Expanded(flex: 2, child: Text("Qty", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
-                        Expanded(flex: 3, child: Text("Price", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
-                        Expanded(flex: 3, child: Text("Total", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
-                        SizedBox(width: 32), // Space for delete icon
+                        Expanded(flex: 1, child: Text("Sl", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 13))),
+                        Expanded(flex: 4, child: Text("Item Name", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 13))),
+                        Expanded(flex: 2, child: Text("Qty", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 13))),
+                        Expanded(flex: 3, child: Text("Price", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 13))),
+                        Expanded(flex: 3, child: Text("Total", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 13))),
+                        SizedBox(width: 40), // Increased width to balance remove icon
                       ],
                     ),
                   ),
-
-                  // List Items
                   ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: _items.length,
-                    separatorBuilder: (context, index) => const Divider(height: 1, indent: 16, endIndent: 16),
+                    separatorBuilder: (context, index) => Divider(height: 1, indent: 16, endIndent: 16, color: Colors.grey.shade200),
                     itemBuilder: (context, index) {
-                      double qty = (_items[index]["qty"] as int).toDouble();
-                      double price = _items[index]["price"] as double;
+                      // Use parseQty for UI calculations as well to be safe
+                      double qty = parseQty(_items[index]["qty"]);
+                      double price = (_items[index]["price"] as num).toDouble();
                       double total = qty * price;
 
                       return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), // Adjusted padding
                         child: Row(
                           children: [
                             Expanded(
                               flex: 1,
-                              child: Text("${index + 1}", textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              child: Container(
+                                width: 24,
+                                height: 24,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Text("${index + 1}", textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.grey)),
+                              ),
                             ),
                             Expanded(
                               flex: 4,
                               child: TextField(
                                 focusNode: _nameFocusNodes[index],
                                 textInputAction: TextInputAction.next,
-                                textAlign: TextAlign.center,
-                                decoration: const InputDecoration(
-                                  hintText: "Product Name",
-                                  border: InputBorder.none,
+                                textAlign: TextAlign.start, // Align text start
+                                decoration: InputDecoration(
+                                  hintText: "Item Name",
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.grey.shade50,
                                   isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                 ),
                                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                                 onChanged: (val) {
                                   _items[index]["name"] = val;
                                 },
+                                controller: TextEditingController(text: _items[index]['name'])
+                                  ..selection = TextSelection.fromPosition(TextPosition(offset: (_items[index]['name'] as String).length)),
                               ),
                             ),
+                            const SizedBox(width: 8),
                             Expanded(
                               flex: 2,
                               child: TextField(
                                 textInputAction: TextInputAction.next,
                                 textAlign: TextAlign.center,
-                                decoration: const InputDecoration(
+                                decoration: InputDecoration(
                                   hintText: "0",
-                                  border: InputBorder.none,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.grey.shade50,
                                   isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
                                 ),
                                 keyboardType: TextInputType.number,
-                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                                 style: const TextStyle(fontSize: 13),
                                 onChanged: (val) {
                                   setState(() {
-                                    _items[index]["qty"] = int.tryParse(val) ?? 1;
+                                    if (int.tryParse(val) != null) {
+                                      _items[index]["qty"] = int.parse(val);
+                                    } else {
+                                      _items[index]["qty"] = val;
+                                    }
                                   });
                                 },
+                                controller: TextEditingController(text: _items[index]['qty'].toString())
+                                  ..selection = TextSelection.fromPosition(TextPosition(offset: _items[index]['qty'].toString().length)),
                               ),
                             ),
+                            const SizedBox(width: 8),
                             Expanded(
                               flex: 3,
                               child: TextField(
                                 textInputAction: TextInputAction.done,
                                 onSubmitted: (_) => _addItem(),
                                 textAlign: TextAlign.center,
-                                decoration: const InputDecoration(
-                                  hintText: "0.0",
-                                  border: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(vertical: 8),
-                                ),
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
-                                style: const TextStyle(fontSize: 13),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')), // ২ দশমিক পর্যন্ত
+                                ],
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                                decoration: InputDecoration(
+                                  hintText: "0.00",
+                                  prefixText: "৳ ",
+                                  prefixStyle: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                  filled: true,
+                                  fillColor: Colors.grey.shade50,
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                                controller: TextEditingController(
+                                  text: _items[index]['price'] != 0.0
+                                      ? (_items[index]['price'] as double).toStringAsFixed(2)
+                                      : "",
+                                ),
                                 onChanged: (val) {
                                   setState(() {
                                     _items[index]["price"] = double.tryParse(val) ?? 0.0;
@@ -770,75 +834,110 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                                 },
                               ),
                             ),
+
                             Expanded(
                               flex: 3,
                               child: Text(
-                                "৳${total.toStringAsFixed(0)}",
+                                "৳${total.toStringAsFixed(2)}",
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                              icon: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                              ),
                               onPressed: () => _removeItem(index),
                               splashRadius: 20,
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
+                              tooltip: "Remove Item",
                             ),
                           ],
                         ),
                       );
                     },
                   ),
+                  if (_items.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(30.0),
+                      child: Column(
+                        children: [
+                          Icon(Icons.add_shopping_cart, size: 40, color: Colors.grey.shade300),
+                          const SizedBox(height: 8),
+                          Text("No items added yet", style: TextStyle(color: Colors.grey.shade500)),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
-
             const SizedBox(height: 24),
-
-            // Footer / Totals
             Card(
-              elevation: 2,
+              elevation: 3,
               shadowColor: Colors.black.withValues(alpha: 0.05),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               color: Colors.white,
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
                     _buildSummaryRow("Subtotal", "৳ ${_subtotal.toStringAsFixed(2)}"),
-                    const SizedBox(height: 24),
-                    _buildInputRow("Discount", _discountController, (val) {
-                        setState(() {
-                          _discount = double.tryParse(val) ?? 0.0;
-                        });
-                    }, color: Colors.red, prefix: "- ৳ ", width: 160, verticalPadding: 14),
+                    const SizedBox(height: 16),
+                    _buildInputRow(
+                        "Discount",
+                        _discountController,
+                            (val) {
+                          setState(() {
+                            _discount = double.tryParse(val) ?? 0.0;
+                          });
+                        },
+                        color: Colors.red,
+                        prefix: "- ৳ ",
+                        width: 140
+                    ),
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 16),
                       child: Divider(),
                     ),
                     _buildSummaryRow("Total", "৳ ${_total.toStringAsFixed(2)}", isTotal: true),
                     const SizedBox(height: 24),
-                    _buildInputRow("Paid", _paidController, (val) {
-                        setState(() {
-                          _paid = double.tryParse(val) ?? 0.0;
-                        });
-                    }, color: Colors.green, prefix: "৳ ", width: 160, verticalPadding: 14),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text("Due", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.red)),
-                        Text("৳ ${_due.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.red)),
-                      ],
+                    _buildInputRow(
+                        "Paid Amount",
+                        _paidController,
+                            (val) {
+                          setState(() {
+                            _paid = double.tryParse(val) ?? 0.0;
+                          });
+                        },
+                        color: Colors.green,
+                        prefix: "৳ ",
+                        width: 140
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _due > 0 ? Colors.red.withOpacity(0.05) : Colors.green.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: _due > 0 ? Colors.red.withOpacity(0.2) : Colors.green.withOpacity(0.2)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(_due >= 0 ? "Balance Due" : "Change Return", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _due > 0 ? Colors.red : Colors.green)),
+                          Text("৳ ${_due.abs().toStringAsFixed(2)}", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: _due > 0 ? Colors.red : Colors.green)),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-
             const SizedBox(height: 24),
-
             SizedBox(
               width: double.infinity,
               height: 56,
@@ -901,17 +1000,17 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(color: isTotal ? Colors.black87 : Colors.grey, fontSize: isTotal ? 18 : 16, fontWeight: isTotal ? FontWeight.bold : FontWeight.normal)),
+        Text(label, style: TextStyle(color: isTotal ? Colors.black87 : Colors.grey, fontSize: isTotal ? 18 : 15, fontWeight: isTotal ? FontWeight.bold : FontWeight.w500)),
         Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: isTotal ? 24 : 16, color: isTotal ? const Color(0xFF0066CC) : Colors.black87)),
       ],
     );
   }
 
-  Widget _buildInputRow(String label, TextEditingController controller, Function(String) onChanged, {Color? color, String prefix = "৳ ", double width = 120, double verticalPadding = 8}) {
+  Widget _buildInputRow(String label, TextEditingController controller, Function(String) onChanged, {Color? color, String prefix = "৳ ", double width = 120, double verticalPadding = 12}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 16)),
+        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 15, fontWeight: FontWeight.w500)),
         SizedBox(
           width: width,
           child: TextField(
@@ -921,17 +1020,26 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
             inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
             decoration: InputDecoration(
               hintText: "0.00",
-              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: verticalPadding),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: verticalPadding),
               prefixText: prefix,
+              prefixStyle: TextStyle(color: Colors.grey.shade600, fontSize: 14),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: Colors.grey.shade300),
               ),
-              focusedBorder: const OutlineInputBorder(
-                borderSide: BorderSide(color: Color(0xFF0066CC)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey.shade300),
               ),
+              focusedBorder: const OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+                borderSide: BorderSide(color: Color(0xFF0066CC), width: 1.5),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              isDense: true,
             ),
-            style: TextStyle(fontWeight: FontWeight.bold, color: color ?? Colors.black87),
+            style: TextStyle(fontWeight: FontWeight.bold, color: color ?? Colors.black87, fontSize: 15),
             onChanged: onChanged,
           ),
         ),
