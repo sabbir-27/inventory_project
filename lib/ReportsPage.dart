@@ -112,7 +112,7 @@ class _ReportsPageState extends State<ReportsPage> {
                 headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                 headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
                 data: <List<String>>[
-                  <String>['Item Name', 'Qty', 'Price', 'Total'],
+                  <String>['Item', 'Qty', 'Price', 'Total'],
                   if (items.isNotEmpty)
                     ...items.map((item) => [
                       item['name']?.toString() ?? "Item",
@@ -347,7 +347,11 @@ class _ReportsPageState extends State<ReportsPage> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(invoice['id']?.toString() ?? "N/A", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                        // Changed to show ID or Phone as fallback
+                                        Text(
+                                          invoice['id']?.toString() ?? invoice['phone']?.toString() ?? "N/A", 
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)
+                                        ),
                                         const SizedBox(height: 4),
                                         Text(
                                           "${invoice['customer']}", 

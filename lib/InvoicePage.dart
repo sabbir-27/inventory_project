@@ -213,88 +213,211 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
   Future<Uint8List> _generatePdf(Map<String, dynamic> invoice) async {
     final pdf = pw.Document();
 
+    // Colors
+    final PdfColor baseColor = PdfColor.fromHex("#0066CC");
+    final PdfColor accentColor = PdfColor.fromHex("#F0F4F8");
+
     // Explicitly cast items to the correct type for PDF generation
     final List<Map<String, dynamic>> items = List<Map<String, dynamic>>.from(
       (invoice['items'] as List).map((item) => Map<String, dynamic>.from(item))
     );
 
     pdf.addPage(
-      pw.Page(
+      pw.MultiPage( // Use MultiPage for automatic pagination
         pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(40),
         build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Header(
-                level: 0,
-                child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('INVOICE', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-                    pw.Text(invoice['date'].toString(), style: const pw.TextStyle(fontSize: 14)),
-                  ],
-                ),
-              ),
-              pw.SizedBox(height: 20),
-              pw.Row(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Column(
+          return [
+            // Header Section - Responsive Layout
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Expanded(
+                  flex: 2,
+                  child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text("Billed To:", style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                      pw.Text(invoice['customer']),
-                      pw.Text(invoice['phone'] ?? ""),
-                      pw.Text(invoice['address'] ?? ""),
+                      pw.Text("YOUR COMPANY NAME", style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: baseColor)),
+                      pw.SizedBox(height: 4),
+                      pw.Text("123 Street Name, Dhaka, Bangladesh", style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                      pw.Text("Phone: +880171234567 | Email: info@company.com", style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
                     ],
                   ),
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                ),
+                pw.Expanded(
+                  flex: 1,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
-                      pw.Text("Invoice ID: ${invoice['id']}"),
+                      pw.Text("INVOICE", style: pw.TextStyle(fontSize: 28, fontWeight: pw.FontWeight.bold, color: baseColor)),
+                      pw.SizedBox(height: 4),
+                      pw.Text("#${invoice['id']}", style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                      pw.Text("Date: ${invoice['date']}", style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
                     ],
+                  ),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 30),
+
+            // Bill To Section - Responsive Box
+            pw.Container(
+              padding: const pw.EdgeInsets.all(15),
+              decoration: pw.BoxDecoration(
+                color: accentColor,
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+              ),
+              width: double.infinity, // Make it span full width
+              child: pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text("INVOICE TO:", style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.grey600)),
+                        pw.SizedBox(height: 4),
+                        pw.Text(invoice['customer'], style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                        if (invoice['phone'] != null && invoice['phone'].toString().isNotEmpty)
+                          pw.Text(invoice['phone'], style: const pw.TextStyle(fontSize: 10)),
+                        if (invoice['address'] != null && invoice['address'].toString().isNotEmpty)
+                          pw.Text(invoice['address'], style: const pw.TextStyle(fontSize: 10)),
+                      ],
+                    ),
                   ),
                 ],
               ),
-              pw.SizedBox(height: 30),
-              pw.Table.fromTextArray(
-                context: context,
-                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-                data: <List<String>>[
-                  <String>['Item', 'Qty', 'Price', 'Total'],
-                  ...items.map((item) => [
+            ),
+            pw.SizedBox(height: 20),
+
+            // Table Section - Responsive Table
+            pw.Table.fromTextArray(
+              context: context,
+              border: null, // Remove default border for cleaner look
+              headerStyle: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 10),
+              headerDecoration: pw.BoxDecoration(
+                color: baseColor,
+                borderRadius: const pw.BorderRadius.vertical(top: pw.Radius.circular(4)),
+              ),
+              cellPadding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              rowDecoration: const pw.BoxDecoration(
+                border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey200, width: 0.5)),
+              ),
+              columnWidths: {
+                0: const pw.FlexColumnWidth(1), // SL
+                1: const pw.FlexColumnWidth(4), // Item Description
+                2: const pw.FlexColumnWidth(2), // Qty
+                3: const pw.FlexColumnWidth(2), // Price
+                4: const pw.FlexColumnWidth(2), // Total
+              },
+              headerAlignments: {
+                0: pw.Alignment.centerLeft,
+                1: pw.Alignment.centerLeft,
+                2: pw.Alignment.center,
+                3: pw.Alignment.centerRight,
+                4: pw.Alignment.centerRight,
+              },
+              cellAlignments: {
+                0: pw.Alignment.centerLeft,
+                1: pw.Alignment.centerLeft,
+                2: pw.Alignment.center,
+                3: pw.Alignment.centerRight,
+                4: pw.Alignment.centerRight,
+              },
+              data: <List<String>>[
+                <String>['SL', 'ITEM DESCRIPTION', 'QTY', 'PRICE', 'TOTAL'],
+                ...items.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final item = entry.value;
+                  return [
+                    (index + 1).toString(),
                     item['name'].toString(),
                     item['qty'].toString(),
                     item['price'].toString(),
                     ((item['qty'] as int) * (item['price'] as double)).toStringAsFixed(2)
-                  ]),
-                ],
-              ),
-              pw.SizedBox(height: 20),
-              pw.Divider(),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.end,
-                children: [
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  ];
+                }),
+              ],
+            ),
+            pw.SizedBox(height: 20),
+
+            // Totals Section - Responsive Alignment
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.end,
+              children: [
+                pw.Expanded(
+                  flex: 1,
+                  child: pw.Container(), // Spacer
+                ),
+                pw.Expanded(
+                  flex: 1,
+                  child: pw.Column(
                     children: [
-                      pw.Text("Subtotal: ${invoice['subtotal'] ?? ''}"),
-                      pw.Text("Discount: ${invoice['discount'] ?? ''}"),
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text("Subtotal:", style: const pw.TextStyle(fontSize: 10)),
+                          pw.Text(invoice['subtotal']?.toString() ?? '0.00', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                        ],
+                      ),
                       pw.SizedBox(height: 4),
-                      pw.Text("Total: ${invoice['amount'].toStringAsFixed(2)}", style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text("Discount:", style: const pw.TextStyle(fontSize: 10, color: PdfColors.red)),
+                          pw.Text("- ${invoice['discount']?.toString() ?? '0.00'}", style: const pw.TextStyle(fontSize: 10, color: PdfColors.red)),
+                        ],
+                      ),
+                      pw.Divider(color: PdfColors.grey300),
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text("Grand Total:", style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: baseColor)),
+                          pw.Text(invoice['amount'].toStringAsFixed(2), style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: baseColor)),
+                        ],
+                      ),
+                      pw.SizedBox(height: 8),
+                       pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text("Paid:", style: const pw.TextStyle(fontSize: 10, color: PdfColors.green)),
+                          pw.Text(invoice['paid']?.toString() ?? '0.00', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.green)),
+                        ],
+                      ),
                       pw.SizedBox(height: 2),
-                      pw.Text("Paid: ${invoice['paid'] ?? ''}"),
-                      pw.Text("Due: ${invoice['due'] ?? ''}", style: pw.TextStyle(color: PdfColors.red)),
+                       pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text("Balance Due:", style: const pw.TextStyle(fontSize: 10, color: PdfColors.red)),
+                          pw.Text(invoice['due']?.toString() ?? '0.00', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.red)),
+                        ],
+                      ),
                     ],
                   ),
+                ),
+              ],
+            ),
+
+            pw.Spacer(),
+
+            // Footer Section
+            pw.Container(
+              width: double.infinity,
+              decoration: pw.BoxDecoration(
+                border: pw.Border(top: pw.BorderSide(color: PdfColors.grey300)),
+              ),
+              padding: const pw.EdgeInsets.only(top: 10),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                children: [
+                  pw.Text("Thank you for your business!", style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600, fontStyle: pw.FontStyle.italic)),
+                  pw.SizedBox(height: 4),
+                  pw.Text("For any inquiries, please contact info@company.com", style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500)),
                 ],
               ),
-              pw.SizedBox(height: 30),
-              pw.Center(child: pw.Text("Thank you for your business!", style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey))),
-            ],
-          );
+            ),
+          ];
         },
       ),
     );
@@ -310,7 +433,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
       );
       return;
     }
-    
+
     // Validate phone number: Must be 11 digits if provided
     if (_phoneController.text.isNotEmpty && _phoneController.text.length != 11) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -327,23 +450,21 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
     }
 
     // Generate ID using Mobile Number if available, else fallback to random
-    // Format: INV-PHONE-TIMESTAMP or just PHONE if preferred. 
-    // Using "INV-" + Phone + Timestamp ensures uniqueness even if same phone orders multiple times.
     String generatedId;
     if (_phoneController.text.isNotEmpty) {
-      generatedId = "INV-${_phoneController.text}-${DateTime.now().millisecondsSinceEpoch % 10000}";
+      generatedId = _phoneController.text; // Use exact mobile number as ID
     } else {
       generatedId = "INV-2023-00${100 + DateTime.now().millisecondsSinceEpoch % 1000}";
     }
 
     final invoiceData = {
       // Keep existing ID if editing, else generate new based on mobile
-      "id": _isEditing ? widget.invoice!['id'] : generatedId, 
+      "id": _isEditing ? widget.invoice!['id'] : generatedId,
       "customer": _customerNameController.text,
       "phone": _phoneController.text,
       "address": _addressController.text,
-      "date": DateTime.now().toIso8601String(), 
-      "subtotal": _subtotal, 
+      "date": DateTime.now().toIso8601String(),
+      "subtotal": _subtotal,
       "discount": _discount,
       "amount": _total,
       "paid": _paid,
@@ -359,7 +480,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
     try {
       if (_isEditing) {
         // Update Existing Invoice
-        final mongoId = widget.invoice!['_id']; 
+        final mongoId = widget.invoice!['_id'];
         if (mongoId != null) {
            await ApiService.updateInvoice(mongoId, invoiceData);
         } else {
@@ -376,7 +497,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
 
       // Generate PDF for user
       final pdfInvoice = Map<String, dynamic>.from(invoiceData);
-      pdfInvoice['date'] = _formatDate(DateTime.now()); 
+      pdfInvoice['date'] = _formatDate(DateTime.now());
       pdfInvoice['subtotal'] = _subtotal.toStringAsFixed(2);
       pdfInvoice['discount'] = _discount.toStringAsFixed(2);
       pdfInvoice['paid'] = _paid.toStringAsFixed(2);
@@ -405,42 +526,67 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: Text(_isEditing ? "Edit Invoice" : "Create Invoice", style: const TextStyle(fontWeight: FontWeight.w600)),
         backgroundColor: const Color(0xFF0066CC),
         foregroundColor: Colors.white,
         elevation: 0,
+        automaticallyImplyLeading: true,
+        toolbarHeight: 120, // increase height for company info
+        flexibleSpace: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 40, 16, 0), // top padding for status bar
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Your Company Name",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              const SizedBox(height: 2),
+              const Text(
+                "123 Street Name, Dhaka, Bangladesh",
+                style: TextStyle(fontSize: 12, color: Colors.white70),
+              ),
+              const Text(
+                "Phone: +880171234567 | Email: info@company.com",
+                style: TextStyle(fontSize: 12, color: Colors.white70),
+              ),
+            ],
+          ),
+        ),
         actions: [
-           IconButton(
-             icon: const Icon(Icons.print),
-             tooltip: "Print Invoice",
-             onPressed: () async {
-                _saveInvoice();
-             },
-           ),
-           IconButton(
-             icon: const Icon(Icons.picture_as_pdf),
-             tooltip: "Download PDF",
-             onPressed: () {
-               _saveInvoice();
-             },
-           ),
-           Padding(
-             padding: const EdgeInsets.only(right: 20, left: 8),
-             child: InkWell(
-               onTap: () => _selectDate(context),
-               borderRadius: BorderRadius.circular(8),
-               child: Padding(
-                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), 
-                 child: Row(
-                   children: [
-                     const Icon(Icons.calendar_today, size: 16),
-                     const SizedBox(width: 8),
-                     Text(_formatDate(_selectedDate), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                   ],
-                 ),
-               ),
-             ),
-           ),
+          IconButton(
+            icon: const Icon(Icons.print),
+            tooltip: "Print Invoice",
+            onPressed: () async {
+              _saveInvoice();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            tooltip: "Download PDF",
+            onPressed: () {
+              _saveInvoice();
+            },
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 20, left: 8),
+            child: InkWell(
+              onTap: () => _selectDate(context),
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_today, size: 16),
+                    const SizedBox(width: 8),
+                    Text(
+                      _formatDate(_selectedDate),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -543,11 +689,11 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                     ),
                     child: const Row(
                       children: [
-                        Expanded(flex: 1, child: Text("Sl", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
-                        Expanded(flex: 4, child: Text("Item Name", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
+                        Expanded(flex: 1, child: Text("Sl", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
+                        Expanded(flex: 4, child: Text("Item Name", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
                         Expanded(flex: 2, child: Text("Qty", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
-                        Expanded(flex: 3, child: Text("Price", textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
-                        Expanded(flex: 3, child: Text("Total", textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
+                        Expanded(flex: 3, child: Text("Price", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
+                        Expanded(flex: 3, child: Text("Total", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
                         SizedBox(width: 32), // Space for delete icon
                       ],
                     ),
@@ -570,13 +716,14 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                           children: [
                             Expanded(
                               flex: 1,
-                              child: Text("${index + 1}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              child: Text("${index + 1}", textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                             ),
                             Expanded(
                               flex: 4,
                               child: TextField(
                                 focusNode: _nameFocusNodes[index],
                                 textInputAction: TextInputAction.next,
+                                textAlign: TextAlign.center,
                                 decoration: const InputDecoration(
                                   hintText: "Product Name",
                                   border: InputBorder.none,
@@ -593,6 +740,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                               flex: 2,
                               child: TextField(
                                 textInputAction: TextInputAction.next,
+                                textAlign: TextAlign.center,
                                 decoration: const InputDecoration(
                                   hintText: "0",
                                   border: InputBorder.none,
@@ -601,7 +749,6 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                                 ),
                                 keyboardType: TextInputType.number,
                                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                textAlign: TextAlign.center,
                                 style: const TextStyle(fontSize: 13),
                                 onChanged: (val) {
                                   setState(() {
@@ -615,6 +762,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                               child: TextField(
                                 textInputAction: TextInputAction.done,
                                 onSubmitted: (_) => _addItem(),
+                                textAlign: TextAlign.center,
                                 decoration: const InputDecoration(
                                   hintText: "0.0",
                                   border: InputBorder.none,
@@ -623,7 +771,6 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                                 ),
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
-                                textAlign: TextAlign.right,
                                 style: const TextStyle(fontSize: 13),
                                 onChanged: (val) {
                                   setState(() {
@@ -636,7 +783,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                               flex: 3,
                               child: Text(
                                 "৳${total.toStringAsFixed(0)}",
-                                textAlign: TextAlign.right,
+                                textAlign: TextAlign.center,
                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                               ),
                             ),
