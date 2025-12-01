@@ -217,6 +217,8 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
     final PdfColor baseColor = PdfColor.fromHex("#0066CC");
     final PdfColor accentColor = PdfColor.fromHex("#F0F4F8");
 
+    final logoImage = await imageFromAssetBundle('assets/images/logo.jpg');
+
     // Explicitly cast items to the correct type for PDF generation
     final List<Map<String, dynamic>> items = List<Map<String, dynamic>>.from(
       (invoice['items'] as List).map((item) => Map<String, dynamic>.from(item))
@@ -235,13 +237,23 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
               children: [
                 pw.Expanded(
                   flex: 2,
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  child: pw.Row(
                     children: [
-                      pw.Text("YOUR COMPANY NAME", style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: baseColor)),
-                      pw.SizedBox(height: 4),
-                      pw.Text("123 Street Name, Dhaka, Bangladesh", style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
-                      pw.Text("Phone: +880171234567 | Email: info@company.com", style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                      pw.Container(
+                        width: 60,
+                        height: 60,
+                        child: pw.Image(logoImage),
+                      ),
+                      pw.SizedBox(width: 10),
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text("Your Company Name", style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: baseColor)),
+                          pw.SizedBox(height: 4),
+                          pw.Text("123 Street Name, Dhaka, Bangladesh", style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                          pw.Text("Phone: +880171234567 | Email: info@company.com", style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -398,9 +410,9 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                 ),
               ],
             ),
-
+            
             pw.Spacer(),
-
+            
             // Footer Section
             pw.Container(
               width: double.infinity,
@@ -530,28 +542,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
         foregroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: true,
-        toolbarHeight: 120, // increase height for company info
-        flexibleSpace: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 40, 16, 0), // top padding for status bar
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Your Company Name",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              const SizedBox(height: 2),
-              const Text(
-                "123 Street Name, Dhaka, Bangladesh",
-                style: TextStyle(fontSize: 12, color: Colors.white70),
-              ),
-              const Text(
-                "Phone: +880171234567 | Email: info@company.com",
-                style: TextStyle(fontSize: 12, color: Colors.white70),
-              ),
-            ],
-          ),
-        ),
+        title: Text(_isEditing ? "Edit Invoice" : "Create Invoice"),
         actions: [
           IconButton(
             icon: const Icon(Icons.print),
@@ -816,24 +807,24 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
                 child: Column(
                   children: [
                     _buildSummaryRow("Subtotal", "৳ ${_subtotal.toStringAsFixed(2)}"),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 24),
                     _buildInputRow("Discount", _discountController, (val) {
                         setState(() {
                           _discount = double.tryParse(val) ?? 0.0;
                         });
-                    }, color: Colors.red, prefix: "- ৳ "),
+                    }, color: Colors.red, prefix: "- ৳ ", width: 160, verticalPadding: 14),
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 16),
                       child: Divider(),
                     ),
                     _buildSummaryRow("Total", "৳ ${_total.toStringAsFixed(2)}", isTotal: true),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
                     _buildInputRow("Paid", _paidController, (val) {
                         setState(() {
                           _paid = double.tryParse(val) ?? 0.0;
                         });
-                    }, color: Colors.green, prefix: "৳ "),
-                    const SizedBox(height: 8),
+                    }, color: Colors.green, prefix: "৳ ", width: 160, verticalPadding: 14),
+                    const SizedBox(height: 24),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -916,13 +907,13 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
     );
   }
 
-  Widget _buildInputRow(String label, TextEditingController controller, Function(String) onChanged, {Color? color, String prefix = "৳ "}) {
+  Widget _buildInputRow(String label, TextEditingController controller, Function(String) onChanged, {Color? color, String prefix = "৳ ", double width = 120, double verticalPadding = 8}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: const TextStyle(color: Colors.grey, fontSize: 16)),
         SizedBox(
-          width: 120,
+          width: width,
           child: TextField(
             controller: controller,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -930,7 +921,7 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
             inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
             decoration: InputDecoration(
               hintText: "0.00",
-              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: verticalPadding),
               prefixText: prefix,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
