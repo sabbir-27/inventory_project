@@ -1,0 +1,40 @@
+name: inventory_app
+description: A simple inventory management app (UI only)
+publish_to: "none"
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI Icons
+  cupertino_icons: ^1.0.6
+  
+  # Fonts
+  google_fonts: ^6.1.0
+  
+  # PDF Generation
+  pdf: ^3.10.0
+  printing: ^5.11.0
+  
+  # Environment Variables
+  flutter_dotenv: ^5.1.0
+  
+  # API
+  http: ^1.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    # - .env  <-- Commented out to fix build error if file is missing in root
