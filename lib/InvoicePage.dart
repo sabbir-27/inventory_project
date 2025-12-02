@@ -553,17 +553,11 @@ class _CreateInvoicePageState extends State<CreateInvoicePage> {
         foregroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: true,
-        toolbarHeight: 80,
+        toolbarHeight: 70,
         flexibleSpace: Padding(
           padding: const EdgeInsets.fromLTRB(50, 45, 16, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
-                "Hardware & Paint Store",
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ],
           ),
         ),
         actions: [
